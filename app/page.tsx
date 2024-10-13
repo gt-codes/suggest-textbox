@@ -4,15 +4,22 @@ import { useCompletion } from 'ai/react';
 import { useEffect, useRef, useState } from 'react';
 import { useDebounce } from 'use-debounce';
 import { KeyboardEvent } from 'react';
+import { useSwipeable } from 'react-swipeable';
 
 export default function Chat() {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const [cursorPosition, setCursorPosition] = useState(0);
+	const [isSwipeActive, setIsSwipeActive] = useState(false);
 
 	const { input, isLoading, setInput, handleInputChange, complete, completion } = useCompletion({
 		api: '/api/suggest',
 	});
 	const [value] = useDebounce(input, 250);
+
+	const acceptSuggestion = () => {
+		setInput(input + completion);
+		setCursorPosition(input.length + completion.length);
+	};
 
 	const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
 		if ((e.key === 'Tab' || e.key === 'ArrowRight') && completion) {
@@ -40,15 +47,23 @@ export default function Chat() {
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [value]);
 
-	useEffect(() => {
-		if (completion) {
-		}
-	}, [completion]);
+	const swipeHandlers = useSwipeable({
+		onSwipedRight: () => {
+			acceptSuggestion();
+			setIsSwipeActive(false);
+		},
+		onSwipeStart: () => setIsSwipeActive(true),
+		onSwiped: () => setIsSwipeActive(false),
+
+		trackMouse: true,
+	});
 
 	return (
 		<div className='flex flex-col w-full max-w-md py-24 mx-auto stretch'>
 			<div className='max-w-md mx-auto p-4 font-sans w-full'>
-				<div className='relative'>
+				<div
+					className={`relative transition-transform duration-200 ${isSwipeActive ? 'scale-102' : ''}`}
+					{...swipeHandlers}>
 					<textarea
 						rows={4}
 						id='textarea'
