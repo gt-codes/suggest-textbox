@@ -11,7 +11,7 @@ export default function Chat() {
 	const [cursorPosition, setCursorPosition] = useState(0);
 	const [isSwipeActive, setIsSwipeActive] = useState(false);
 
-	const { input, isLoading, setInput, handleInputChange, complete, completion } = useCompletion({
+	const { input, isLoading, setInput, handleInputChange, complete, completion, setCompletion } = useCompletion({
 		api: '/api/suggest',
 	});
 	const [value] = useDebounce(input, 250);
@@ -41,9 +41,8 @@ export default function Chat() {
 	}, [cursorPosition, value]);
 
 	useEffect(() => {
-		if (value) {
-			complete(value);
-		}
+		if (value) complete(value);
+		else setCompletion('');
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [value]);
 

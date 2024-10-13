@@ -1,16 +1,28 @@
-
 import { openai } from '@ai-sdk/openai';
-import { streamText } from 'ai';
+import { formatStreamPart, streamText } from 'ai';
+import kv from '@vercel/kv';
 
 export const maxDuration = 30;
 
 export async function POST(req: Request) {
 	const { prompt }: { prompt: string } = await req.json();
 
+	const cached = await kv.get(prompt);
+	if (cached != null) {
+		return new Response(formatStreamPart('text', cached as string), {
+			status: 200,
+			headers: { 'Content-Type': 'text/plain' },
+		});
+	}
+
 	const result = await streamText({
 		model: openai('gpt-4o-mini'),
 		system: systemInstructions,
 		prompt: `${basePrompt}\n\n${prompt}`,
+		async onFinish({ text }) {
+			await kv.set(prompt, text);
+			await kv.expire(prompt, 60 * 60);
+		},
 	});
 
 	return result.toDataStreamResponse();
