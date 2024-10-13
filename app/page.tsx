@@ -1,7 +1,7 @@
 'use client';
 
 import { useCompletion } from 'ai/react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useDebounce } from 'use-debounce';
 import { KeyboardEvent } from 'react';
 import { useSwipeable } from 'react-swipeable';
@@ -12,22 +12,25 @@ export default function Chat() {
 	const textareaRef = useRef<HTMLTextAreaElement>(null);
 	const [cursorPosition, setCursorPosition] = useState(0);
 	const [isSwipeActive, setIsSwipeActive] = useState(false);
+	const [lastAcceptedLength, setLastAcceptedLength] = useState(0);
 
 	const { input, isLoading, setInput, handleInputChange, complete, completion, setCompletion } = useCompletion({
 		api: '/api/suggest',
 	});
-	const [value] = useDebounce(input, 250);
+	const [value] = useDebounce(input, 300);
 
-	const acceptSuggestion = () => {
-		setInput(input + completion);
-		setCursorPosition(input.length + completion.length);
-	};
+	const acceptSuggestion = useCallback(() => {
+		const newInput = input + completion;
+		setInput(newInput);
+		setCursorPosition(newInput.length);
+		setLastAcceptedLength(newInput.length);
+		setCompletion('');
+	}, [input, completion, setInput, setCompletion]);
 
 	const handleKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
 		if ((e.key === 'Tab' || e.key === 'ArrowRight') && completion) {
 			e.preventDefault();
-			setInput(input + completion);
-			setCursorPosition(input.length + completion.length);
+			acceptSuggestion();
 		}
 	};
 
@@ -43,19 +46,23 @@ export default function Chat() {
 	}, [cursorPosition, value]);
 
 	useEffect(() => {
-		if (value) complete(value);
-		else setCompletion('');
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [value]);
+		if (value === '') {
+			setLastAcceptedLength(0);
+			setCompletion('');
+		} else if (value && value.length > lastAcceptedLength) {
+			complete(value);
+		}
+	}, [value, complete, setCompletion, lastAcceptedLength]);
 
 	const swipeHandlers = useSwipeable({
 		onSwipedRight: () => {
-			acceptSuggestion();
+			if (completion) {
+				acceptSuggestion();
+			}
 			setIsSwipeActive(false);
 		},
 		onSwipeStart: () => setIsSwipeActive(true),
 		onSwiped: () => setIsSwipeActive(false),
-
 		trackMouse: true,
 	});
 
@@ -65,13 +72,8 @@ export default function Chat() {
 				<div
 					className={`relative transition-transform duration-200 ${isSwipeActive ? 'scale-102' : ''}`}
 					{...swipeHandlers}>
-					{/* <div
-						className={`absolute inset-0 pointer-events-none bg-red-900 rounded-lg ${
-							isLoading ? 'animate-pulse' : ''
-						}`}
-						aria-hidden='true'
-					/> */}
 					<textarea
+						ref={textareaRef}
 						id='textarea'
 						value={input}
 						aria-label='Message'
@@ -82,7 +84,7 @@ export default function Chat() {
 					/>
 					<div className='absolute inset-0 pointer-events-none z-10' aria-hidden='true'>
 						<div className='text-3xl'>
-							<span className='invisible'>{value}</span>
+							<span className='invisible'>{input}</span>
 							<span className='text-gray-400'>{completion}</span>
 						</div>
 					</div>
