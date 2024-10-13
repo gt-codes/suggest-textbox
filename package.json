@@ -12,6 +12,8 @@
     "@ai-sdk/openai": "^0.0.66",
     "@vercel/kv": "^3.0.0",
     "ai": "^3.4.9",
+    "framer-motion": "^11.11.8",
+    "lucide-react": "^0.452.0",
     "next": "14.2.15",
     "react": "^18",
     "react-dom": "^18",
